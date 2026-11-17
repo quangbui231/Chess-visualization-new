@@ -34,7 +34,7 @@ c1.metric("Tổng số ván đấu", f"{int(kpi.n):,}")
 c2.metric("Trắng thắng", f"{kpi.white_win:.1%}")
 c3.metric("Đen thắng", f"{kpi.black_win:.1%}")
 c4.metric("Hòa", f"{kpi.draw:.1%}")
-c5.metric("Số nước đi trung vị", f"{kpi.med_moves:.0f}")
+
 
 st.divider()
 
@@ -42,7 +42,7 @@ st.divider()
 # RQ1 — Mức độ phổ biến của các thể thức thời gian
 # =====================================================================
 st.subheader(
-    "RQ1 — Những thể thức thời gian nào được người chơi Lichess sử dụng phổ biến nhất?"
+    "RQ1 — Những thể thức thời gian được chơi phổ biến nhất?"
 )
 
 st.caption(

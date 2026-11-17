@@ -1,5 +1,5 @@
 
-"""Kết nối DuckDB, bộ lọc chung và hàm dựng biểu đồ cho các trang dashboard."""
+"""Kết nối DuckDB, bộ lọc chung và hàm dựng biểu đồ cho dashboard."""
 
 import sys
 from dataclasses import dataclass
@@ -12,6 +12,10 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import config  # noqa: E402
 
+
+# ---------------------------------------------------------------------
+# CẤU HÌNH GIAO DIỆN VÀ MÀU SẮC
+# ---------------------------------------------------------------------
 SPEED_ORDER = ["UltraBullet", "Bullet", "Blitz", "Rapid", "Classical"]
 BAND_ORDER = ["<1200", "1200-1499", "1500-1799", "1800-2099", "2100+"]
 GAP_ORDER = ["0-49", "50-99", "100-199", "200-399", "400+"]
@@ -20,13 +24,31 @@ COLORS = {
     "white": "#E8E8E8",
     "black": "#2B2B2B",
     "draw": "#9AA5B1",
-    "accent": "#1F77B4",
+    "accent": "#2878A8",
+
+    # Bảng màu chung cho dashboard
+    "navy": "#17324D",
+    "blue": "#2878A8",
+    "teal": "#2A9D8F",
+    "orange": "#E69F00",
+    "red": "#D95F59",
+    "purple": "#8172B2",
+    "gray": "#9AA5B1",
 }
 
+CHART_COLORWAY = [
+    COLORS["blue"],
+    COLORS["orange"],
+    COLORS["teal"],
+    COLORS["purple"],
+    COLORS["red"],
+    COLORS["gray"],
+]
 
-# ---------------------------------------------------------------------------
-# Kết nối và truy vấn
-# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# KẾT NỐI VÀ TRUY VẤN
+# ---------------------------------------------------------------------
 @st.cache_resource
 def get_connection():
     if not config.DB_PATH.exists():
@@ -43,9 +65,9 @@ def query(sql: str, params: tuple = ()) -> pd.DataFrame:
     return cur.execute(sql, list(params)).df()
 
 
-# ---------------------------------------------------------------------------
-# Bộ lọc dùng chung cho các trang
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# BỘ LỌC DÙNG CHUNG CHO CÁC TRANG
+# ---------------------------------------------------------------------
 @dataclass
 class Filters:
     where: str
@@ -54,7 +76,8 @@ class Filters:
 
 
 def sidebar_filters(complete_toggle: bool = False) -> Filters:
-    st.sidebar.header("Bộ lọc")
+    st.sidebar.markdown("## Bộ lọc dữ liệu")
+    st.sidebar.caption("Tùy chỉnh phạm vi ván đấu được phân tích.")
 
     speeds = st.sidebar.multiselect(
         "Thể thức thời gian",
@@ -107,6 +130,7 @@ def sidebar_filters(complete_toggle: bool = False) -> Filters:
         )
         st.stop()
 
+    st.sidebar.divider()
     st.sidebar.metric("Số ván đang xem", f"{n:,}")
 
     return Filters(
@@ -116,25 +140,101 @@ def sidebar_filters(complete_toggle: bool = False) -> Filters:
     )
 
 
-# ---------------------------------------------------------------------------
-# Giao diện chung
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# TIÊU ĐỀ TRANG
+# ---------------------------------------------------------------------
 def page_header(title: str, subtitle: str):
+    """Hiển thị tiêu đề và mô tả thống nhất cho từng trang."""
     st.title(title)
     st.caption(subtitle)
 
 
+# ---------------------------------------------------------------------
+# ĐỊNH DẠNG BIỂU ĐỒ PLOTLY
+# ---------------------------------------------------------------------
+
 def style_fig(fig, height: int = 380):
+    """Chuẩn hóa giao diện biểu đồ trên toàn dashboard."""
+
     fig.update_layout(
         template="plotly_white",
         height=height,
-        margin=dict(l=10, r=10, t=50, b=10),
-        font=dict(size=13),
-        legend_title_text="",
+
+        # Màu sắc
+        colorway=CHART_COLORWAY,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#FFFFFF",
+
+        # Font chữ
+        font=dict(
+            family="Arial, sans-serif",
+            size=13,
+            color="#34495E",
+        ),
+
+        # Khoảng cách
+        margin=dict(l=15, r=20, t=55, b=45),
+
+        # Tiêu đề biểu đồ
+        title=dict(
+            font=dict(
+                size=17,
+                color=COLORS["navy"],
+            ),
+            x=0.02,
+            xanchor="left",
+        ),
+
+        # Chú giải
+        legend=dict(
+            title_text="",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=11),
+            bgcolor="rgba(255,255,255,0)",
+        ),
+
+        # Tooltip
+        hoverlabel=dict(
+            bgcolor="#17324D",
+            bordercolor="#17324D",
+            font=dict(
+                color="#FFFFFF",
+                size=12,
+            ),
+        ),
     )
+
+    # Trục X
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="#EDF1F5",
+        gridwidth=1,
+        zeroline=False,
+        showline=False,
+        tickfont=dict(size=11, color="#718096"),
+        title_font=dict(size=12, color="#526477"),
+    )
+
+    # Trục Y
+    fig.update_yaxes(
+        showgrid=False,
+        zeroline=False,
+        showline=False,
+        tickfont=dict(size=11, color="#718096"),
+        title_font=dict(size=12, color="#526477"),
+    )
+
     return fig
 
 
+
+# ---------------------------------------------------------------------
+# GHI CHÚ NGUỒN DỮ LIỆU
+# ---------------------------------------------------------------------
 def data_note():
     st.caption(
         "Nguồn: mẫu phân tầng theo thời gian gồm các ván Lichess tháng 09/2025, "
@@ -143,10 +243,25 @@ def data_note():
     )
 
 
+# ---------------------------------------------------------------------
+# BẢN ĐỒ NHIỆT
+# ---------------------------------------------------------------------
 def heatmap(
-    df, value_col, n_col, fmt, title, colorbar_title, colorscale,
-    zmin=None, zmax=None, zmid=None, min_n=300, height=360,
-    x_order=None, y_order=None, x_title="Nhóm Elo trung bình",
+    df,
+    value_col,
+    n_col,
+    fmt,
+    title,
+    colorbar_title,
+    colorscale,
+    zmin=None,
+    zmax=None,
+    zmid=None,
+    min_n=300,
+    height=360,
+    x_order=None,
+    y_order=None,
+    x_title="Nhóm Elo trung bình",
 ):
     """Bản đồ nhiệt thể thức x nhóm Elo."""
     import plotly.graph_objects as go
@@ -158,12 +273,14 @@ def heatmap(
         df.pivot(index="speed", columns="rating_band", values=value_col)
         .reindex(index=y_order, columns=x_order)
     )
+
     cnt = (
         df.pivot(index="speed", columns="rating_band", values=n_col)
         .reindex(index=y_order, columns=x_order)
     )
 
     val = val.where(cnt >= min_n)
+
     text = [
         ["" if pd.isna(v) else format(v, fmt) for v in row]
         for row in val.values
@@ -188,12 +305,13 @@ def heatmap(
             zmax=zmax,
             zmid=zmid,
             colorbar=dict(title=colorbar_title),
-            xgap=2,
-            ygap=2,
+            xgap=3,
+            ygap=3,
         )
     )
 
     fig.update_yaxes(autorange="reversed")
+
     fig.update_layout(
         title=title,
         xaxis_title=x_title,
