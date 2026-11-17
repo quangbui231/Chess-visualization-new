@@ -1,6 +1,11 @@
+
 import streamlit as st
 
-st.set_page_config(page_title="Phân tích ván cờ Lichess", page_icon="♟️", layout="wide")
+st.set_page_config(
+    page_title="Phân tích ván cờ Lichess",
+    page_icon="♟️",
+    layout="wide",
+)
 
 st.markdown(
     """
@@ -18,7 +23,10 @@ st.markdown(
         background: linear-gradient(180deg, #eaf3f8 0%, #f7fafb 100%);
         border-right: 1px solid #d6e4eb;
     }
-    h1, h2, h3 { color: var(--chess-ink); letter-spacing: -0.02em; }
+    h1, h2, h3 {
+        color: var(--chess-ink);
+        letter-spacing: -0.02em;
+    }
     h2 { margin-top: 1.4rem; }
     [data-testid="stMetric"] {
         background: rgba(255, 255, 255, 0.82);
@@ -40,9 +48,22 @@ st.markdown(
 )
 
 pages = [
-    st.Page("pages/overview.py", title="Tổng quan", icon="📊", default=True),
-    st.Page("pages/rating_result.py", title="Rating và kết quả", icon="⚖️"),
-    st.Page("pages/time_pressure.py", title="Thời gian và kết thúc ván", icon="⏱️"),
+    st.Page(
+        "pages/overview.py",
+        title="Tổng quan",
+        icon="📊",
+        default=True,
+    ),
+    st.Page(
+        "pages/rating_result.py",
+        title="Elo và kết quả ván đấu",
+        icon="⚖️",
+    ),
+    st.Page(
+        "pages/time_pressure.py",
+        title="Thời gian và diễn biến",
+        icon="⏱️",
+    ),
 ]
 
-st.navigation(pages).run()  
+st.navigation(pages).run()

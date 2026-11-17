@@ -1,3 +1,4 @@
+
 import sys
 from pathlib import Path
 
@@ -8,61 +9,118 @@ import streamlit as st
 
 import helpers as h
 
-h.page_header("Tổng quan", "Bức tranh chung của mẫu ván cờ Lichess đang xem")
+h.page_header(
+    "Tổng quan",
+    "Tổng quan về mẫu dữ liệu các ván cờ trên Lichess.",
+)
+
 f = h.sidebar_filters()
 
-# ---------- Chỉ số tổng quan ----------
+# ---------------------------------------------------------------------
+# Các chỉ số tổng quan
+# ---------------------------------------------------------------------
 kpi = h.query(f"""
     SELECT count(*) AS n,
            avg((winner = 'white')::INT) AS white_win,
-           avg((winner = 'draw')::INT)  AS draw,
-           avg(is_time_forfeit::INT)    AS forfeit,
-           median(total_moves)          AS med_moves
+           avg((winner = 'black')::INT) AS black_win,
+           avg((winner = 'draw')::INT) AS draw,
+           median(total_moves) AS med_moves
     FROM staging.games {f.where}
 """, f.params).iloc[0]
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Số ván", f"{int(kpi.n):,}")
+
+c1.metric("Tổng số ván đấu", f"{int(kpi.n):,}")
 c2.metric("Trắng thắng", f"{kpi.white_win:.1%}")
-c3.metric("Hòa", f"{kpi.draw:.1%}")
-c4.metric("Kết thúc do hết giờ", f"{kpi.forfeit:.1%}")
-c5.metric("Số nước đi (trung vị)", f"{kpi.med_moves:.0f}")
+c3.metric("Đen thắng", f"{kpi.black_win:.1%}")
+c4.metric("Hòa", f"{kpi.draw:.1%}")
+c5.metric("Số nước đi trung vị", f"{kpi.med_moves:.0f}")
 
-# ---------- Biểu đồ ----------
-left, right = st.columns(2)
+st.divider()
 
-with left:
-    by_speed = h.query(f"""
-        SELECT speed, count(*) AS n FROM staging.games {f.where}
-        GROUP BY speed
-    """, f.params)
-    by_speed["pct"] = by_speed["n"] / by_speed["n"].sum()
-    fig = px.bar(by_speed, x="speed", y="n", text=by_speed["pct"].map("{:.1%}".format),
-                 category_orders={"speed": h.SPEED_ORDER},
-                 labels={"speed": "Thể thức", "n": "Số ván"},
-                 title="Số ván theo thể thức", color_discrete_sequence=[h.COLORS["accent"]])
-    fig.update_traces(textposition="outside")
-    st.plotly_chart(h.style_fig(fig), width="stretch")
+# =====================================================================
+# RQ1 — Mức độ phổ biến của các thể thức thời gian
+# =====================================================================
+st.subheader(
+    "RQ1 — Những thể thức thời gian nào được người chơi Lichess sử dụng phổ biến nhất?"
+)
 
-with right:
-    res = h.query(f"""
-        SELECT winner, count(*) AS n FROM staging.games {f.where} GROUP BY winner
-    """, f.params)
-    names = {"white": "Trắng thắng", "black": "Đen thắng", "draw": "Hòa"}
-    res["Kết quả"] = res["winner"].map(names)
-    fig = px.pie(res, names="Kết quả", values="n", hole=0.5, title="Cơ cấu kết quả",
-                 color="winner",
-                 color_discrete_map={"white": "#D9D9D9", "black": "#444444", "draw": "#9AA5B1"})
-    st.plotly_chart(h.style_fig(fig), width="stretch")
+st.caption(
+    "Phân tích số lượng và tỷ trọng ván đấu thuộc từng thể thức thời gian "
+    "trong mẫu dữ liệu."
+)
 
-hist = h.query(f"""
-    SELECT floor(avg_rating / 50) * 50 AS rating_bin, count(*) AS n
-    FROM staging.games {f.where} GROUP BY 1 ORDER BY 1
+rq1 = h.query(f"""
+    SELECT speed, count(*) AS n
+    FROM staging.games {f.where}
+    GROUP BY speed
+    ORDER BY n DESC
 """, f.params)
-fig = px.bar(hist, x="rating_bin", y="n",
-             labels={"rating_bin": "Rating trung bình của hai bên (nhóm 50 điểm)", "n": "Số ván"},
-             title="Phân bố rating trung bình của ván cờ",
-             color_discrete_sequence=[h.COLORS["accent"]])
-st.plotly_chart(h.style_fig(fig, height=340), width="stretch")
+
+if rq1.empty:
+    st.info("Không có dữ liệu phù hợp với các bộ lọc hiện tại.")
+else:
+    rq1["share"] = rq1["n"] / rq1["n"].sum()
+    rq1["share_label"] = rq1["share"].map(lambda x: f"{x:.1%}")
+
+    fig = px.bar(
+        rq1,
+        x="speed",
+        y="n",
+        text="share_label",
+        category_orders={"speed": h.SPEED_ORDER},
+        labels={
+            "speed": "Thể thức thời gian",
+            "n": "Số lượng ván đấu",
+        },
+        title="Số lượng ván đấu theo thể thức thời gian",
+        color_discrete_sequence=[h.COLORS["accent"]],
+        hover_data={"share": ":.1%", "n": ":,"},
+    )
+
+    fig.update_traces(textposition="outside")
+    st.plotly_chart(h.style_fig(fig, height=380), width="stretch")
+
+st.divider()
+
+# =====================================================================
+# RQ2 — Phân bố Elo của người chơi
+# =====================================================================
+st.subheader(
+    "RQ2 — Mức Elo của người chơi trong mẫu dữ liệu được phân bố như thế nào?"
+)
+
+st.caption(
+    "Sử dụng Elo trung bình của hai người chơi trong mỗi ván để phân tích "
+    "phân bố trình độ người chơi trong mẫu dữ liệu. "
+    "Mỗi khoảng trên biểu đồ đại diện cho một nhóm Elo rộng 50 điểm."
+)
+
+rq2 = h.query(f"""
+    SELECT floor(avg_rating / 50) * 50 AS rating_bin,
+           count(*) AS n
+    FROM staging.games {f.where}
+    GROUP BY 1
+    ORDER BY 1
+""", f.params)
+
+if rq2.empty:
+    st.info("Không có dữ liệu phù hợp với các bộ lọc hiện tại.")
+else:
+    fig = px.bar(
+        rq2,
+        x="rating_bin",
+        y="n",
+        labels={
+            "rating_bin": "Elo trung bình của hai người chơi",
+            "n": "Số lượng ván đấu",
+        },
+        title="Phân bố Elo trung bình của các ván đấu",
+        color_discrete_sequence=[h.COLORS["accent"]],
+        hover_data={"n": ":,"},
+    )
+
+    fig.update_xaxes(dtick=100)
+    st.plotly_chart(h.style_fig(fig, height=400), width="stretch")
 
 h.data_note()
