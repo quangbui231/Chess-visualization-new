@@ -1,9 +1,10 @@
 step,rule,rows_removed,rows_remaining,pct_of_input
 0,Đầu vào (raw.lichess_games),0,400000,0.0
-1,"Không có kết quả hợp lệ (Result không phải 1-0, 0-1, 1/2-1/2)",2752,397248,0.688
+1,Không có kết quả hợp lệ,2752,397248,0.688
 2,Có bot ở một trong hai bên,1121,396127,0.28025
 3,Thiếu hoặc sai Elo,0,396127,0.0
 4,Thiếu ngày giờ,0,396127,0.0
-5,Thể thức hoặc đồng hồ không xác định,213,395914,0.05325
-6,Ván không có nước đi nào,796,395118,0.199
-7,Trùng game_id (giữ một dòng),0,395118,0.0
+5,Thiếu game_id,0,396127,0.0
+6,Thể thức hoặc đồng hồ không xác định,213,395914,0.05325
+7,Ván không có nước đi nào,796,395118,0.199
+8,Trùng game_id (giữ một dòng),0,395118,0.0

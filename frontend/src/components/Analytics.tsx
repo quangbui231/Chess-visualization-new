@@ -73,9 +73,9 @@ function BarChart({ rows, label, format = (n: number) => n.toLocaleString("vi-VN
   </svg>;
 }
 
-function ConfidenceChart({ rows, keyLabel, scoreLabel, title, fixedDomain = false, showMeanLabels = false }: { rows: { label: string; score: number; ci: number; n: number }[]; keyLabel: string; scoreLabel: string; title: string; fixedDomain?: boolean; showMeanLabels?: boolean }) {
-  const rawMin = Math.min(.5, ...rows.map((row) => row.score - row.ci));
-  const rawMax = Math.max(.5, ...rows.map((row) => row.score + row.ci));
+function MeanPointChart({ rows, keyLabel, scoreLabel, title, fixedDomain = false, showMeanLabels = false }: { rows: { label: string; score: number; n: number }[]; keyLabel: string; scoreLabel: string; title: string; fixedDomain?: boolean; showMeanLabels?: boolean }) {
+  const rawMin = Math.min(.5, ...rows.map((row) => row.score));
+  const rawMax = Math.max(.5, ...rows.map((row) => row.score));
   const min = fixedDomain ? 0 : Math.floor((rawMin - .05) / .05) * .05;
   const max = fixedDomain ? 1 : Math.ceil((rawMax + .05) / .05) * .05;
   const step = fixedDomain || max - min > .3 ? .1 : max - min > .15 ? .05 : .025;
@@ -85,22 +85,16 @@ function ConfidenceChart({ rows, keyLabel, scoreLabel, title, fixedDomain = fals
   return <div className="confidence-wrap"><svg className="chart-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
     {ticks.map((tick) => <g key={tick}><line x1={left} x2={width-right} y1={y(tick)} y2={y(tick)} stroke={tick === .5 ? "#91a1ac" : "#e8eef2"} strokeDasharray={tick === .5 ? "5 5" : undefined} /><text x={left-8} y={y(tick)+4} textAnchor="end" className="axis-text">{tick.toFixed(2)}</text></g>)}
     {rows.map((row,i) => {
-      const step=chartW/rows.length, x=left+step*(i+.5), low=row.score-row.ci, high=row.score+row.ci, color=COLORS[i%COLORS.length];
-      const tooltip=`${keyLabel}: ${row.label}\n${scoreLabel}: ${row.score.toFixed(3)}\nKhoảng tin cậy 95%: ${low.toFixed(3)}–${high.toFixed(3)}\nCỡ mẫu: n=${row.n.toLocaleString("vi-VN")}`;
+      const step=chartW/rows.length, x=left+step*(i+.5), color=COLORS[i%COLORS.length];
+      const tooltip=`${keyLabel}: ${row.label}\n${scoreLabel}: ${row.score.toFixed(3)}\nCỡ mẫu: n=${row.n.toLocaleString("vi-VN")}`;
       return <g key={row.label} data-tooltip={tooltip} tabIndex={0} role="img" aria-label={tooltip}>
-        <line x1={x} x2={x} y1={y(high)} y2={y(low)} stroke="white" strokeWidth="7" strokeLinecap="round"/>
-        <line x1={x-9} x2={x+9} y1={y(high)} y2={y(high)} stroke="white" strokeWidth="7" strokeLinecap="round"/>
-        <line x1={x-9} x2={x+9} y1={y(low)} y2={y(low)} stroke="white" strokeWidth="7" strokeLinecap="round"/>
-        <line x1={x} x2={x} y1={y(high)} y2={y(low)} stroke={color} strokeWidth="3" strokeLinecap="round"/>
-        <line x1={x-9} x2={x+9} y1={y(high)} y2={y(high)} stroke={color} strokeWidth="3" strokeLinecap="round"/>
-        <line x1={x-9} x2={x+9} y1={y(low)} y2={y(low)} stroke={color} strokeWidth="3" strokeLinecap="round"/>
         <circle cx={x} cy={y(row.score)} r="6" fill={color} stroke="white" strokeWidth="2"/>
         {showMeanLabels&&<text x={x} y={y(row.score)-10} textAnchor="middle" fill="#17324D" fontSize="10" fontWeight="700" paintOrder="stroke" stroke="#fff" strokeWidth="3" strokeLinejoin="round">{row.score.toFixed(3)}</text>}
         <text x={x} y={height-25} textAnchor="middle" className="axis-text">{row.label}</text>
       </g>;
     })}
     <text x="14" y={height/2} transform={`rotate(-90 14 ${height/2})`} className="axis-title">{scoreLabel}</text><text x={width/2} y={height-4} textAnchor="middle" className="axis-title">{keyLabel}</text>
-  </svg><div className="chart-legend"><span><i className="legend-dot"/>Điểm trung bình</span><span><i className="legend-line"/>Khoảng tin cậy 95%</span><span><i className="legend-dash"/>Mức cân bằng 0,50</span></div></div>;
+  </svg><div className="chart-legend"><span><i className="legend-dot"/>Điểm trung bình</span><span><i className="legend-dash"/>Mức cân bằng 0,50</span></div></div>;
 }
 
 function StackedChart({ rows }: { rows: RQ5[] }) {
@@ -131,7 +125,7 @@ export function Analytics({ section }: { section: "overview" | "elo" | "time" })
     <div className="charts-grid"><Card title="RQ1 · Thể thức thời gian nào phổ biến nhất?" subtitle="Số ván theo thể thức; thanh dài hơn nghĩa là xuất hiện nhiều hơn." loading={loading} error={error} hasData={!!data.rq1?.length}><BarChart rows={(data.rq1??[]).map(r=>{const total=(data.rq1??[]).reduce((sum,item)=>sum+item.n,0);return {label:r.speed,value:r.n,tooltip:`Thể thức: ${r.speed}\nSố ván trong nhóm: ${r.n.toLocaleString("vi-VN")}\nTỷ trọng: ${(r.share*100).toFixed(1)}%\nTổng số ván: n=${total.toLocaleString("vi-VN")}`};})} label="Số ván theo thể thức thời gian" horizontal/></Card><Card title="RQ2 · Mức Elo trung bình phân bố ra sao?" subtitle="Mỗi ván được xếp theo Elo trung bình của hai người chơi, chia bin 50 Elo." loading={loading} error={error} hasData={!!data.rq2?.length}><BarChart rows={(data.rq2??[]).map(r=>({label:`${r.rating_bin}–${r.rating_bin+49}`,value:r.n,tooltip:`Nhóm Elo trung bình mỗi ván: ${r.rating_bin}–${r.rating_bin+49}\nSố ván: ${r.n.toLocaleString("vi-VN")}\nTỷ trọng trong dữ liệu đã lọc: ${(r.n/(data.rq2??[]).reduce((sum,item)=>sum+item.n,0)*100).toFixed(1)}%\nCỡ mẫu: n=${r.n.toLocaleString("vi-VN")}`}))} label="Số ván theo nhóm Elo trung bình"/></Card></div>
   </>;
   if (section === "elo") return <>
-    <div className="charts-grid"><Card className="chart-wide" title="RQ3 · Người Elo cao hơn có đạt điểm tốt hơn?" subtitle="Điểm của người có Elo cao hơn (thắng 1, hòa 0,5, thua 0), theo chênh lệch rating." loading={loading} error={error} hasData={!!data.rq3?.length}><ConfidenceChart rows={(data.rq3??[]).map(r=>({label:r.rating_gap_group,score:r.score,ci:r.ci,n:r.n}))} keyLabel="Nhóm chênh lệch Elo" scoreLabel="Điểm của người Elo cao hơn" title="Điểm trung bình và khoảng tin cậy 95% theo chênh lệch Elo" fixedDomain/></Card><Card title="RQ4 · Trắng có lợi thế khi Elo gần bằng nhau?" subtitle="Chỉ xét ván có chênh lệch Elo dưới 100; 0,50 là cân bằng." loading={loading} error={error} hasData={!!data.rq4?.length}><ConfidenceChart rows={(data.rq4??[]).map(r=>({label:r.speed,score:r.score,ci:r.ci,n:r.n}))} keyLabel="Thể thức thời gian" scoreLabel="Điểm của quân Trắng" title="Điểm trung bình quân Trắng theo thể thức" showMeanLabels/></Card><Card title="RQ5 · Kết quả ván khác nhau thế nào giữa các thể thức?" subtitle="Tỷ trọng thắng Trắng, thắng Đen và hòa trong từng thể thức." loading={loading} error={error} hasData={!!data.rq5?.length}><StackedChart rows={data.rq5??[]}/></Card></div>
+    <div className="charts-grid"><Card className="chart-wide" title="RQ3 · Người Elo cao hơn có đạt điểm tốt hơn?" subtitle="Điểm của người có Elo cao hơn (thắng 1, hòa 0,5, thua 0), theo chênh lệch rating." loading={loading} error={error} hasData={!!data.rq3?.length}><MeanPointChart rows={(data.rq3??[]).map(r=>({label:r.rating_gap_group,score:r.score,n:r.n}))} keyLabel="Nhóm chênh lệch Elo" scoreLabel="Điểm của người Elo cao hơn" title="Điểm trung bình theo chênh lệch Elo" fixedDomain/></Card><Card title="RQ4 · Trắng có lợi thế khi Elo gần bằng nhau?" subtitle="Chỉ xét ván có chênh lệch Elo dưới 100; 0,50 là cân bằng." loading={loading} error={error} hasData={!!data.rq4?.length}><MeanPointChart rows={(data.rq4??[]).map(r=>({label:r.speed,score:r.score,n:r.n}))} keyLabel="Thể thức thời gian" scoreLabel="Điểm của quân Trắng" title="Điểm trung bình quân Trắng theo thể thức" showMeanLabels/></Card><Card title="RQ5 · Kết quả ván khác nhau thế nào giữa các thể thức?" subtitle="Tỷ trọng thắng Trắng, thắng Đen và hòa trong từng thể thức." loading={loading} error={error} hasData={!!data.rq5?.length}><StackedChart rows={data.rq5??[]}/></Card></div>
     <p className="analysis-note">RQ3–RQ5 mặc định chỉ tính ván hoàn tất, theo đúng tùy chọn mặc định của dashboard Streamlit.</p>
   </>;
   return <div className="charts-grid"><Card title="RQ6 · Tỷ lệ ván kết thúc do hết giờ" subtitle="Tỷ lệ số ván bị xử thua do hết giờ trên tổng số ván theo từng thể thức." loading={loading} error={error} hasData={!!data.rq6?.length}><BarChart rows={(data.rq6??[]).map(r=>({label:r.speed,value:r.forfeit_rate*100,tooltip:`Thể thức: ${r.speed}\nTỷ lệ hết giờ: ${(r.forfeit_rate*100).toFixed(1)}%\nSố ván hết giờ: ${Math.round(r.forfeit_rate*r.n).toLocaleString("vi-VN")} ván\nTổng số ván tính tỷ lệ: n=${r.n.toLocaleString("vi-VN")}`}))} label="Tỷ lệ ván hết giờ theo thể thức" format={(n)=>n.toFixed(1)} suffix="%"/></Card><Card title="RQ7 · Độ dài ván thay đổi thế nào theo thể thức?" subtitle="Phân bố tổng số nước đi; trung vị và khoảng tứ phân vị giúp so sánh độ dài điển hình." loading={loading} error={error} hasData={moveRows.length>0}><BoxPlot rows={moveRows}/></Card></div>;
